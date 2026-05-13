@@ -1,0 +1,24 @@
+{
+  "_comment": "Copy this to servers.json and add your servers. servers.json is gitignored. Servers can also be added through the panel UI.",
+  "servers": [
+    {
+      "id": "example-survival",
+      "name": "Survival",
+      "host": "100.64.0.10",
+      "rcon": {
+        "port": 25575,
+        "password": "rcon-password-here"
+      },
+      "ssh": {
+        "port": 22,
+        "username": "minecraft",
+        "password": "ssh-password-or-leave-empty-if-using-key",
+        "privateKeyPath": ""
+      },
+      "directory": "/home/minecraft/server",
+      "startCommand": "systemctl --user start minecraft",
+      "stopCommand": "systemctl --user stop minecraft",
+      "restartCommand": "systemctl --user restart minecraft"
+    }
+  ]
+}

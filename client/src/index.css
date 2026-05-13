@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App-level resets and helpers */
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Scrollbar polish (best-effort, browser-dependent) */
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.4); border-radius: 4px; }
+.dark .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); }
+
+/* Monospace console */
+.console-line { white-space: pre-wrap; word-break: break-word; }

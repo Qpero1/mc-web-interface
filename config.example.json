@@ -1,0 +1,34 @@
+{
+  "_comment_panel": "Top-level panel settings. Copy this file to config.json and edit. config.json is gitignored.",
+  "panel": {
+    "host": "0.0.0.0",
+    "port": 8787,
+    "_comment_jwtSecret": "Long random string. Override via JWT_SECRET in .env if you prefer.",
+    "jwtSecret": "CHANGE_ME_TO_A_LONG_RANDOM_STRING",
+    "_comment_sessionTtl": "How long a login lasts, in seconds. 12h default.",
+    "sessionTtl": 43200
+  },
+  "_comment_auth": "Local username/password auth. Password is a bcrypt hash. Use scripts/hash-password.js to generate one.",
+  "auth": {
+    "username": "admin",
+    "passwordHash": "$2a$10$REPLACE_THIS_WITH_A_REAL_BCRYPT_HASH_FOR_YOUR_PASSWORD"
+  },
+  "_comment_activityLog": "Activity log database. SQLite if better-sqlite3 builds for your platform, otherwise JSON.",
+  "activityLog": {
+    "driver": "sqlite",
+    "path": "data/activity.sqlite",
+    "jsonFallbackPath": "data/activity.json",
+    "maxEntries": 5000
+  },
+  "_comment_polling": "Polling cadence for stats and rcon status checks (ms).",
+  "polling": {
+    "statsIntervalMs": 5000,
+    "rconStatusIntervalMs": 10000
+  },
+  "_comment_servers": "Server connection details live in servers.json (gitignored). See servers.example.json.",
+  "serversFile": "servers.json",
+  "_comment_backups": "Where auto-backup schedules are persisted.",
+  "backups": {
+    "schedulesFile": "data/backup-schedules.json"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "mc-panel",
+  "version": "1.0.0",
+  "description": "Full-stack Minecraft server management web panel over Tailscale",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "node server/index.js",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "start": "node server/index.js",
+    "install:all": "npm install && npm --prefix client install",
+    "lint": "echo \"(no linter configured)\""
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "chokidar": "^3.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "extract-zip": "^2.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.0",
+    "node-cron": "^3.0.3",
+    "rcon-client": "^4.2.4",
+    "socket.io": "^4.8.1",
+    "ssh2": "^1.16.0",
+    "ssh2-sftp-client": "^11.0.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
