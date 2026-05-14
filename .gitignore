@@ -4,6 +4,8 @@ node_modules/
 # Local config & secrets
 config.json
 servers.json
+agent-config.json
+agent-state.json
 .env
 .env.local
 
@@ -11,6 +13,7 @@ servers.json
 data/
 *.sqlite
 *.sqlite-journal
+backups/
 
 # Build output
 client/dist/

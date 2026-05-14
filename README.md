@@ -1,3 +1,6 @@
+# NOTE
+this is very early wip so expect errors
+
 # mc-panel
 
 A full-stack web panel for managing one or more Minecraft servers over your
@@ -205,3 +208,121 @@ PRs welcome. Try to keep:
 ## License
 
 [MIT](LICENSE)
+
+## Architecture
+
+The codebase is structured for a long-term migration from "panel SSH's into
+Minecraft hosts" to "panel sends jobs to an agent running on the host".
+
+```
+server/
+  index.js              — Express + Socket.io entry, wires the layers below
+  config.js             — config loader
+  servers.js            — server registry (SSH/SFTP-backed)
+  rcon.js               — pooled RCON client
+  activityLog.js        — persistent activity log
+  events/emitter.js     — shared internal event bus
+  execution/
+    localExecutor.js    — single interface for ALL machine I/O
+  services/             — pure domain logic; calls localExecutor only
+    serverLifecycle.js, rconService.js, fileService.js,
+    modService.js, worldService.js, configService.js,
+    backupService.js, statsService.js, logService.js, playersService.js
+  adapters/
+    rest.js             — Express routes (thin wrappers around services)
+    socketio.js         — Socket.io handlers (thin wrappers + event bridge)
+    cloudAdapter.js     — stub for a future cloud control plane
+
+agent/                  — standalone headless agent
+  index.js              — entry; can be run with `npm run agent`
+  config.js             — agent-config.json loader
+  processManager.js     — spawn / track / stop Minecraft server processes
+  stateManager.js       — per-server state machine + persisted state file
+  logStreamer.js        — chokidar-based log tail with rotation handling
+  rconClient.js         — RCON with readiness polling + auto-reconnect
+  heartbeat.js          — periodic structured health log
+  recovery.js           — reconcile persisted state vs reality on restart
+  jobHandler.js         — sequential per-server job queue
+  cloudConnector.js     — stub for cloud-routed jobs (future)
+  tests/reliability.js  — end-to-end reliability suite
+```
+
+Routes and socket handlers contain no business logic — they validate
+inputs, dispatch to a service, and return its result. Services are pure
+modules that work the same whether called from HTTP, Socket.io, a test,
+or (in the future) an agent. The `localExecutor` is the single chokepoint
+where the panel actually touches the file system or RCON; in a later
+phase it will be replaced with a transport that ships jobs to an agent
+instead of running them locally.
+
+## The local agent
+
+The agent (`agent/`) is the long-term home for everything that touches a
+Minecraft server's machine — process lifecycle, log tailing, RCON, file
+operations. Today it runs standalone and the panel still uses
+SSH/SFTP; in a later phase the panel will dispatch jobs to the agent
+instead.
+
+### Running the agent
+
+1. **Configure**
+
+   On macOS / Linux:
+   ```
+   cp agent-config.example.json agent-config.json
+   ```
+
+   On Windows (cmd.exe):
+   ```
+   copy agent-config.example.json agent-config.json
+   ```
+
+   Then edit `agent-config.json` with your servers (directory, start
+   command, RCON port/password, etc.).
+
+2. **Start**
+
+   ```
+   npm run agent
+   ```
+
+   The agent binds to `127.0.0.1:9001` (configurable). It exposes a
+   minimal local control surface:
+
+   - `GET  /health`             → `{ ok: true, ts }`
+   - `GET  /state`              → all per-server states
+   - `POST /jobs`               → dispatch a job, body `{ type, serverId, ...args }`
+
+   Supported job types: `startServer`, `stopServer`, `restartServer`,
+   `getServerStatus`, `executeRcon`, `listFiles`, `readFile`,
+   `writeFile`, `deleteFile`, `renameFile`, `updateConfig`, `toggleMod`,
+   `createBackup`, `listBackups`, `deleteBackup`, `fetchConsoleTail`,
+   `getStats`.
+
+   Example:
+   ```
+   curl -X POST http://127.0.0.1:9001/jobs ^
+        -H "Content-Type: application/json" ^
+        -d "{\"type\":\"startServer\",\"serverId\":\"server-1\"}"
+   ```
+
+### Reliability tests
+
+The agent ships with an in-process reliability suite that spawns a fake
+"Minecraft server" (a Node script) so the tests run anywhere Node runs —
+no real Java install required.
+
+```
+npm run agent:test
+```
+
+The suite covers:
+
+- **A** — crash detection within 5s of an unexpected exit
+- **B** — 5 rapid start/stop cycles leave no zombies
+- **C** — two servers running in parallel don't cross-pollute logs/state
+- **D** — invalid start command fails cleanly without crashing the agent
+- **E** — after a simulated agent restart, a running server is reattached
+- **F** — duplicate start request is refused
+- **G** — path traversal (`../../etc/passwd`) is refused with a
+  structured error

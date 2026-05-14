@@ -1,7 +1,7 @@
 {
   "name": "mc-panel",
   "version": "1.0.0",
-  "description": "Full-stack Minecraft server management web panel over Tailscale",
+  "description": "Full-stack Minecraft server management web panel + headless local agent",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,8 @@
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client install && npm --prefix client run build",
     "start": "node server/index.js",
+    "agent": "node agent/index.js",
+    "agent:test": "node agent/tests/reliability.js",
     "install:all": "npm install && npm --prefix client install",
     "lint": "echo \"(no linter configured)\""
   },
