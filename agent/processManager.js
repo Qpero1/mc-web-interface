@@ -3,11 +3,12 @@
  * --------------------------------------------------------------------------
  * Spawn, track, and stop Minecraft server child processes.
  *
- * - Spawn via the configured start command in the server's directory.
+ * - Spawn the configured start command via shell:true so quoting works
+ *   correctly on Windows ("C:\\Program Files\\..."), Linux, and macOS.
  * - Track PIDs in-memory and report exits.
  * - Refuse duplicate starts.
  * - Port availability check before starting.
- * - Graceful stop (SIGTERM / `stop` over stdin) with force-kill fallback.
+ * - Graceful stop (`stop` via stdin → SIGTERM → SIGKILL) with grace period.
  * --------------------------------------------------------------------------
  */
 import { spawn } from 'node:child_process';
@@ -18,7 +19,7 @@ import { logger } from './logger.js';
 
 const RECENT_LOG_LINES = 50;
 
-/** Check if a TCP port is already bound on localhost. */
+/** Check whether a TCP port is already bound on localhost. */
 export function isPortInUse(port, host = '127.0.0.1') {
   return new Promise((resolve) => {
     const tester = net.createServer()
@@ -46,7 +47,6 @@ export class ProcessManager extends EventEmitter {
     return entry?.proc?.pid || null;
   }
 
-  /** Capture the most recent log lines that flow through addLogLine for crash diagnostics. */
   addLogLine(serverId, line) {
     const entry = this.procs.get(serverId);
     if (!entry) return;
@@ -69,15 +69,15 @@ export class ProcessManager extends EventEmitter {
       e.code = 'PORT_IN_USE'; throw e;
     }
     const cwd = path.resolve(server.directory);
-    const isWin = process.platform === 'win32';
-    // Use shell so .bat / .sh / multi-arg commands all work.
-    const shell = isWin ? (process.env.ComSpec || 'cmd.exe') : '/bin/sh';
-    const shellArg = isWin ? '/c' : '-c';
     logger.info('process.spawn', { serverId: server.id, cwd, command: server.startCommand });
-    const proc = spawn(shell, [shellArg, server.startCommand], {
+    // shell:true lets the OS handle quoting. On Windows this becomes
+    // `cmd /d /s /c "<command>"` which correctly preserves the inner quotes.
+    // On POSIX it becomes `/bin/sh -c "<command>"`.
+    const proc = spawn(server.startCommand, {
       cwd,
       env: { ...process.env, MC_PANEL_SERVER_ID: server.id },
       windowsHide: true,
+      shell: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     const entry = { proc, startedAt: Date.now(), recentLog: [], stopping: false };
@@ -118,10 +118,7 @@ export class ProcessManager extends EventEmitter {
     return { pid: proc.pid };
   }
 
-  /**
-   * Gracefully stop a server. Sends "stop" over stdin if possible, then
-   * SIGTERM, then SIGKILL after the grace period.
-   */
+  /** Graceful stop. */
   async stop(server) {
     const entry = this.procs.get(server.id);
     if (!entry) {
@@ -130,29 +127,15 @@ export class ProcessManager extends EventEmitter {
     }
     entry.stopping = true;
     const grace = server.stopGraceMs || 30000;
-
     return new Promise((resolve) => {
-      const onExit = (code, signal) => {
-        cleanup();
-        resolve({ code, signal });
-      };
-      const cleanup = () => {
-        clearTimeout(termTimer);
-        clearTimeout(killTimer);
-        entry.proc.off('exit', onExit);
-      };
+      const onExit = (code, signal) => { cleanup(); resolve({ code, signal }); };
+      const cleanup = () => { clearTimeout(termTimer); clearTimeout(killTimer); entry.proc.off('exit', onExit); };
       entry.proc.once('exit', onExit);
-
-      // 1) Polite: send `stop` over stdin
       try { entry.proc.stdin?.write('stop\n'); } catch {}
-
-      // 2) After ~grace/2 send SIGTERM
       const termTimer = setTimeout(() => {
         if (entry.proc.exitCode !== null) return;
         try { entry.proc.kill('SIGTERM'); } catch {}
       }, Math.max(1000, grace / 2));
-
-      // 3) After grace, force-kill
       const killTimer = setTimeout(() => {
         if (entry.proc.exitCode !== null) return;
         try { entry.proc.kill('SIGKILL'); } catch {}
@@ -160,7 +143,6 @@ export class ProcessManager extends EventEmitter {
     });
   }
 
-  /** Send a raw string to the server's stdin (e.g. for vanilla console). */
   writeStdin(serverId, text) {
     const entry = this.procs.get(serverId);
     if (!entry) return false;
@@ -168,14 +150,12 @@ export class ProcessManager extends EventEmitter {
     catch { return false; }
   }
 
-  /** PID liveness check (cross-platform). */
   isPidAlive(pid) {
     if (!pid) return false;
     try { process.kill(pid, 0); return true; }
     catch (err) { return err.code === 'EPERM'; }
   }
 
-  /** Force-kill any tracked process (for shutdown). */
   killAll() {
     for (const [id, entry] of this.procs.entries()) {
       try { entry.proc.kill('SIGKILL'); } catch {}
@@ -183,7 +163,6 @@ export class ProcessManager extends EventEmitter {
     }
   }
 
-  /** Recent log lines for crash diagnostics. */
   recentLog(serverId) {
     return (this.procs.get(serverId)?.recentLog || []).slice();
   }

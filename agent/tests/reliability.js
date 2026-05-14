@@ -59,7 +59,7 @@ async function makeFakeServer(id, opts = {}) {
   const dir = path.join(ROOT_TMP, id);
   await fs.mkdir(path.join(dir, 'logs'), { recursive: true });
   // The fake jar — a tiny Node script that prints to stdout AND writes to logs/latest.log
-  const fakeJs = path.join(dir, 'fake-server.js');
+  const fakeJs = path.join(dir, 'fake-server.cjs');
   await fs.writeFile(fakeJs, `
 const fs = require('node:fs');
 const path = require('node:path');
