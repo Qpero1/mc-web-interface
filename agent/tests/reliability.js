@@ -85,7 +85,7 @@ process.on('SIGTERM', () => { clearInterval(t); log.end(); setTimeout(() => proc
 `.trim());
   return {
     id, name: id, directory: dir,
-    startCommand: opts.startCommand || `${process.execPath} ${JSON.stringify(fakeJs)}`,
+    startCommand: opts.startCommand || `"${process.execPath}" ${JSON.stringify(fakeJs)}`,
     rconPort: 0, rconPassword: 'unused', javaPath: 'node',
     stopGraceMs: 3000, port: opts.port || 0, autoRestart: false,
   };
